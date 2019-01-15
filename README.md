@@ -29,12 +29,12 @@ queries:
 - query: count()
   repo: humio-audit
   interval: 5m
-  metric_name: log_lines
+  metric_name: humio_audit_total
 
 - query: count()
   repo: humio
   interval: 5m
-  metric_name: some_metric
+  metric_name: humio_total
 ```
 NB! Currently the exporter only supports `count()` queries.
 
