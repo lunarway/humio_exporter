@@ -1,0 +1,10 @@
+queries:
+- query: count()
+  repo: humio-audit
+  interval: 5m
+  metric_name: log_lines
+
+- query: count()
+  repo: humio
+  interval: 5m
+  metric_name: some_metric
