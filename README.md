@@ -1,6 +1,6 @@
 # humio_exporter
 
-[![Build Status](https://travis-ci.org/lunarway/humio_exporter.svg?branch=master)](https://travis-ci.org/lunarway/humio_exporter)
+[![Build Status](https://travis-ci.com/lunarway/humio_exporter.svg?branch=master)](https://travis-ci.com/lunarway/humio_exporter)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lunarway/humio_exporter)](https://goreportcard.com/report/github.com/lunarway/humio_exporter)
 [![Docker Repository on Quay](https://quay.io/repository/lunarway/humio_exporter/status "Docker Repository on Quay")](https://quay.io/repository/lunarway/humio_exporter)
 
@@ -104,3 +104,13 @@ docker build -t humio_exporter .
 ```
 
 This is useful if the exporter is to be depoyled in Kubernetes or other dockerized environments.
+
+# Development
+
+The project uses Go modules so you need Go version >=1.11 to run it.
+Run builds and tests with the standard Go tool chain.
+
+```go
+go build
+go test
+```
