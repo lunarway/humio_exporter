@@ -13,7 +13,7 @@ Several pre-compiled binaries are available from the [releases page](https://git
 A docker image is also available on our Quay.io registry.
 
 ```
-docker run quay.io/lunarway/humio_exporter --api.token <api-token> --humio.url <humio-api-url> --config queries.yaml
+docker run quay.io/lunarway/humio_exporter --humio.api-token <api-token> --humio.url <humio-api-url> --config queries.yaml
 ```
 
 # Usage
@@ -39,14 +39,14 @@ queries:
 NB! Currently the exporter only supports `count()` queries.
 
 ```
-humio_exporter --config=CONFIG --humio.url=HUMIO.URL --api.token=API.TOKEN
+humio_exporter --config=CONFIG --humio.url=HUMIO.URL --humio.api-token=API.TOKEN
 ```
 
 See all configuration options with the `--help` flag
 
 ```
 $ humio_exporter --help
-usage: humio_exporter --config=CONFIG --humio.url=HUMIO.URL --api.token=API.TOKEN [<flags>]
+usage: humio_exporter --config=CONFIG --humio.url=HUMIO.URL --humio.api-token=API.TOKEN [<flags>]
 
 Humio exporter for Prometheus. Provide your Humio API token and configuration file with queries to expose as Prometheus metrics.
 
@@ -54,7 +54,7 @@ Flags:
   -h, --help                 Show context-sensitive help (also try --help-long and --help-man).
       --config=CONFIG        The humio_exporter configuration file to be used
       --humio.url=HUMIO.URL  Humio base API url
-      --api.token=API.TOKEN  Humio API token
+      --humio.api-token=API.TOKEN  Humio API token
       --humio.timeout=10     Timeout for requests against the Humio API
       --web.listen-address=":9534"
                              Address on which to expose metrics.
@@ -68,7 +68,7 @@ Flags:
 It is possible to use a file to pass arguments to the exporter.
 For example:
 ```
- echo --api.token=<>\n > args
+ echo --humio.api-token=<>\n > args
 ```
 And run the exporter using:
 ```

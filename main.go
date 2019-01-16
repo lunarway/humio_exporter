@@ -59,7 +59,7 @@ func main() {
 	flags := kingpin.New("humio_exporter", "Humio exporter for Prometheus. Provide your Humio API token and configuration file with queries to expose as Prometheus metrics.")
 	configFile := flags.Flag("config", "The humio_exporter configuration file to be used").Required().String()
 	baseURL := flags.Flag("humio.url", "Humio base API url").Required().String()
-	apiToken := flags.Flag("api.token", "Humio API token").Required().String()
+	apiToken := flags.Flag("humio.api-token", "Humio API token").Required().String()
 	requestTimeout := flags.Flag("humio.timeout", "Timeout for requests against the Humio API").Default("10").Int()
 	listenAddress := flags.Flag("web.listen-address", "Address on which to expose metrics.").Default(":9534").String()
 	log.AddFlags(flags)
