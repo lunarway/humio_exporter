@@ -100,6 +100,16 @@ func main() {
 
 	http.Handle("/metrics", promhttp.Handler())
 
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "healthy")
+	})
+
+	// TODO: Add more logic on when the exporter is actually ready
+	// e.g. connection to humio is succesful
+	http.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "healthy")
+	})
+
 	done := make(chan error, 1)
 	go func() {
 		log.Infof("Listening on %s", *listenAddress)
