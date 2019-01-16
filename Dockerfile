@@ -21,4 +21,4 @@ FROM scratch
 ENTRYPOINT [ "/humio_exporter" ]
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /tmp/humio_exporter /
-COPY queries.yaml /
+COPY examples/queries.yaml /

@@ -1,0 +1,53 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: humio-exporter
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: humio-exporter
+  template:
+    metadata:
+      name: humio-exporter
+      labels:
+        app: humio-exporter
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9534'
+    spec:
+      volumes:
+        - name: config
+          configMap:
+            name: humio-exporter-config
+      containers:
+      - name: humio-exporter
+        image: quay.io/lunarway/humio_exporter:v0.0.1
+        args: ["--humio.api-token", "$(HUMIO_API_TOKEN)", 
+               "--humio.url", "http://humio-log.logging:8080", 
+               "--config", "/etc/humio_exporter/queries.yaml", 
+               "--log.level", "debug"]
+        env:
+        - name: HUMIO_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: humio.api-token
+              name: humio-exporter
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9534
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 9534
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          failureThreshold: 5
+        ports:
+        - name: scrape
+          containerPort: 9534
+        volumeMounts:
+        - name: config
+          mountPath: /etc/humio_exporter
