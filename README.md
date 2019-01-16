@@ -114,3 +114,44 @@ Run builds and tests with the standard Go tool chain.
 go build
 go test
 ```
+
+
+# Deployment
+
+To deploy the exporter in Kubernetes, you can find a simple Kubernetes deployment and secret yaml in the `examples` folder. You have to add your Humio api token in the `secrets.yaml` and/or the url of you humio deployment `deployment.yaml`. The examples assumes that you have a namespace in kubernetes named: `monitoring`. 
+
+It further assumes that you have [kubernetes service discovery](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) configured for you Prometheus instance and a target that will gather metrics from pods, similar to this:
+
+```
+- job_name: 'kubernetes-pods'
+  kubernetes_sd_configs:
+  - role: pod
+
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+    action: keep
+    regex: true
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+    action: replace
+    target_label: __metrics_path__
+    regex: (.+)
+  - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+    action: replace
+    regex: (.+):(?:\d+);(\d+)
+    replacement: ${1}:${2}
+    target_label: __address__
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+```
+
+To deploy it to your kubernetes cluster run the following commands:
+
+```
+kubectl create configmap humio-exporter-config --from-file=examples/queries.yaml --namespace=monitoring
+kubectl apply -f examples/secrets.yaml
+kubectl apply -f examples/deployment.yaml
+```
+
+The exporter expose http endpoints that can be used by kubernetes probes:
+* `/healthz` - used for liveness probe, always returns `healthy`, status code 200.
+* `/ready` - used for readiness probe, return `true` and status code 200 after the first scrape completed. Otherwise, it returns `false`, with status code 503.

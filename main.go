@@ -47,7 +47,8 @@ type YamlConfig struct {
 }
 
 var (
-	version = ""
+	version            = ""
+	supportedFunctions = []string{"_count", "_min", "_max", "_avg", "_rate", "_range", "_stddev", "_sum"}
 )
 
 const (
@@ -162,7 +163,6 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 	}()
 
 	for {
-		//var updates []interface{}
 		for _, job := range jobs {
 			poll, err := client.pollQueryJob(job.Id, job.Repo)
 			if err != nil {
@@ -170,24 +170,30 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 				return
 			}
 
-			value, err := parseFloat(poll.Events[0]["_count"])
-			if err != nil {
-				done <- err
-				return
+			var floatValue float64
+			for _, f := range supportedFunctions {
+				value, ok := poll.Events[0][f]
+				if !ok {
+					continue
+				}
+				floatValue, err = parseFloat(value)
+				if err != nil {
+					done <- err
+					return
+				}
+				break
 			}
 
 			if poll.Done {
-				//updates = append(updates, float64(job.Timespan, value))
-				metricMap.UpdateMetricValue(job.MetricName, job.Timespan, job.Repo, value)
+				metricMap.UpdateMetricValue(job.MetricName, job.Timespan, job.Repo, floatValue)
 				if err != nil {
 					done <- err
 					return
 				}
 			} else {
-				log.Infof("Skipped value because query isn't done. Timespan: %v, Value: %v", job.Timespan, value)
+				log.Debugf("Skipped value because query isn't done. Timespan: %v, Value: %v", job.Timespan, floatValue)
 			}
 		}
-		// log.WithFields(updates...).Info("Updated values from humio")
 		time.Sleep(5000 * time.Millisecond)
 	}
 }
