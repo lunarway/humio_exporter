@@ -25,7 +25,7 @@ spec:
       - name: humio-exporter
         image: quay.io/lunarway/humio_exporter:v0.0.3
         args: ["--humio.api-token", "$(HUMIO_API_TOKEN)", 
-               "--humio.url", "http://humio-log.logging:8080", 
+               "--humio.url", "<HUMIO_URL>", 
                "--config", "/etc/humio_exporter/queries.yaml", 
                "--log.level", "debug"]
         env:
