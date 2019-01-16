@@ -26,17 +26,47 @@ To specify which queries you want exported as Prometheus metrics, you have to pr
 
 ```
 queries:
-- query: count()
-  repo: humio-audit
-  interval: 5m
-  metric_name: humio_audit_total
-
-- query: count()
+- query: count(status)
   repo: humio
-  interval: 5m
-  metric_name: humio_total
+  interval: 30m
+  metric_name: humio_status_total
+
+- query: max(status)
+  repo: humio
+  interval: 30m
+  metric_name: humio_status_max
+
+- query: min(status)
+  repo: humio
+  interval: 30m
+  metric_name: humio_status_min
+
+- query: avg(status)
+  repo: humio
+  interval: 30m
+  metric_name: humio_status_avg
+
+- query: counterAsRate(status)
+  repo: humio
+  interval: 30m
+  metric_name: humio_status_rate
+
+- query: range(status)
+  repo: humio
+  interval: 30m
+  metric_name: humio_status_range
+
+- query: stdDev(field=status)
+  repo: humio
+  interval: 30m
+  metric_name: humio_status_stddev
+
+- query: sum(status)
+  repo: humio
+  interval: 30m
+  metric_name: humio_status_sum
 ```
-NB! Currently the exporter only supports `count()` queries.
+Currently the export supports the above aggregate query functions
 
 ```
 humio_exporter --config=CONFIG --humio.url=HUMIO.URL --humio.api-token=API.TOKEN
