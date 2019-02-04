@@ -38,6 +38,9 @@ queries:
   repo: humio
   interval: 30m
   metric_name: humio_status_sum
+  metric_labels:
+  - key: squad
+    value: nasa
 
 
 

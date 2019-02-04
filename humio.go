@@ -25,7 +25,7 @@ type startQueryPayload struct {
 	IsLive      bool   `json:"isLive"`
 }
 
-func (c *client) startQueryJob(query, repo, metricName, start, end string) (queryJob, error) {
+func (c *client) startQueryJob(query, repo, metricName, start, end string, labels []MetricLabel) (queryJob, error) {
 	postData := startQueryPayload{
 		QueryString: query,
 		Start:       start,
@@ -57,6 +57,7 @@ func (c *client) startQueryJob(query, repo, metricName, start, end string) (quer
 	queryResponse.Timespan = start
 	queryResponse.Repo = repo
 	queryResponse.MetricName = metricName
+	queryResponse.MetricLabels = labels
 
 	return queryResponse, nil
 }
