@@ -65,7 +65,12 @@ queries:
   repo: humio
   interval: 30m
   metric_name: humio_status_sum
+  metric_labels:
+  - key: squad
+    value: nasa
 ```
+As seen in the last example query, you can also specify a set of static labels to be outputtet along with the metric.
+
 Currently the export supports the above aggregate query functions
 
 ```
@@ -111,11 +116,24 @@ The specified queries in the configuration file will be exporter with two labels
 - `repo` - the repository that the query was executed against
 - `interval` - the interval the query result represent.
 
-Here is an example.
+There is an option to add static labels as well. This can be done as follows:
+
+```
+- query: sum(status)
+  repo: humio
+  interval: 30m
+  metric_name: humio_status_sum
+  metric_labels:
+  - key: squad
+    value: nasa
+```
+
+Example.
 
 ```
 humio_total{interval="5m", repo="humio"} 3458
 humio_audit_total{interval="5m", repo="humio-audit"} 2976
+humio_status_sum{interval="30m", repo="humio", squad="nasa"} 235
 ```
 
 # Build
