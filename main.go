@@ -219,32 +219,32 @@ func (m *MetricMap) Register() error {
 	return nil
 }
 
-func (m *MetricMap) UpdateMetricValue(metricName, timespan, repo string, value float64, labels []MetricLabel) error {
+func (m *MetricMap) UpdateMetricValue(metricName, timespan, repo string, value float64, staticLabels []MetricLabel) error {
 
-	stringMap := make(map[string]string)
-	stringMap[intervalLabel] = timespan
-	stringMap[repoLabel] = repo
-	for _, l := range labels {
-		stringMap[l.Key] = l.Value
+	labels := make(map[string]string)
+	labels[intervalLabel] = timespan
+	labels[repoLabel] = repo
+	for _, l := range staticLabels {
+		labels[l.Key] = l.Value
 	}
 
 	gauge := m.Gauges[metricName]
-	gauge.With(stringMap).Set(value)
+	gauge.With(labels).Set(value)
 	return nil
 }
 
-func (m *MetricMap) AddGauge(metricName string, labels []MetricLabel) error {
-	var labelSlice []string
-	labelSlice = append(labelSlice, intervalLabel)
-	labelSlice = append(labelSlice, repoLabel)
-	for _, l := range labels {
-		labelSlice = append(labelSlice, l.Key)
+func (m *MetricMap) AddGauge(metricName string, staticLabels []MetricLabel) error {
+	var labelKeys []string
+	labelKeys = append(labelKeys, intervalLabel)
+	labelKeys = append(labelKeys, repoLabel)
+	for _, l := range staticLabels {
+		labelKeys = append(labelKeys, l.Key)
 	}
 
 	m.Gauges[metricName] = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: metricName,
 			Help: "Gauge for humio query",
-		}, labelSlice)
+		}, labelKeys)
 	return nil
 }

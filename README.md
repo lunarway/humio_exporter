@@ -69,7 +69,7 @@ queries:
   - key: squad
     value: nasa
 ```
-As seen in the last example query, you can also specify at set of static labels to be outputtet along with the metric.
+As seen in the last example query, you can also specify a set of static labels to be outputtet along with the metric.
 
 Currently the export supports the above aggregate query functions
 
