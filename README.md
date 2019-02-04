@@ -65,7 +65,12 @@ queries:
   repo: humio
   interval: 30m
   metric_name: humio_status_sum
+  metric_labels:
+  - key: squad
+    value: nasa
 ```
+As seen in the last example query, you can also specify at set of static labels to be outputtet along with the metric.
+
 Currently the export supports the above aggregate query functions
 
 ```
