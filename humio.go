@@ -39,7 +39,7 @@ func (c *client) startQueryJob(query, repo, metricName, start, end string, label
 		return queryJob{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/dataspaces/%s/queryjobs/", c.baseURL, repo), &reader)
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/repositories/%s/query/", c.baseURL, repo), &reader)
 	if err != nil {
 		return queryJob{}, err
 	}
@@ -63,7 +63,7 @@ func (c *client) startQueryJob(query, repo, metricName, start, end string, label
 }
 
 func (c *client) stopQueryJob(id, repo string) error {
-	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/dataspaces/%s/queryjobs/%s", c.baseURL, repo, id), nil)
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/repositories/%s/query/%s", c.baseURL, repo, id), nil)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (c *client) stopQueryJob(id, repo string) error {
 }
 
 func (c *client) pollQueryJob(id, repo string) (queryJobData, error) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/dataspaces/%s/queryjobs/%s", c.baseURL, repo, id), nil)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/repositories/%s/query/%s", c.baseURL, repo, id), nil)
 	if err != nil {
 		return queryJobData{}, err
 	}
