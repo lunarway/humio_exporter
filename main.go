@@ -160,13 +160,11 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		select {
-		case sig := <-sigs:
-			for _, job := range jobs {
-				client.stopQueryJob(job.Id, job.Repo)
-			}
-			done <- fmt.Errorf("received os signal '%s'", sig)
+		sig := <-sigs
+		for _, job := range jobs {
+			client.stopQueryJob(job.Id, job.Repo)
 		}
+		done <- fmt.Errorf("received os signal '%s'", sig)
 	}()
 
 	for {
