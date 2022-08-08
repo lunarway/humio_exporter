@@ -22,7 +22,7 @@ You need an API Token with access to the repositories you specify in the configu
 
 The exporter exposes prometheus metrics on `/metrics` on port `9534` (can be configured).
 
-To specify which queries you want exported as Prometheus metrics, you have to provide a configuration file, e.g. `queries.yaml` in the format: 
+To specify which queries you want exported as Prometheus metrics, you have to provide a configuration file, e.g. `queries.yaml` in the format:
 
 ```
 queries:
@@ -67,8 +67,9 @@ queries:
   metric_name: humio_status_sum
   metric_labels:
   - key: squad
-    value: nasa
+    value: foo
 ```
+
 As seen in the last example query, you can also specify a set of static labels to be outputtet along with the metric.
 
 Currently the export supports the above aggregate query functions
@@ -102,17 +103,21 @@ Flags:
 
 It is possible to use a file to pass arguments to the exporter.
 For example:
+
 ```
  echo --humio.api-token=<>\n > args
 ```
+
 And run the exporter using:
+
 ```
 ./humio_exporter @args
 ```
 
-
 # Design
-The specified queries in the configuration file will be exporter with two labels: 
+
+The specified queries in the configuration file will be exporter with two labels:
+
 - `repo` - the repository that the query was executed against
 - `interval` - the interval the query result represent.
 
@@ -125,7 +130,7 @@ There is an option to add static labels as well. This can be done as follows:
   metric_name: humio_status_sum
   metric_labels:
   - key: squad
-    value: nasa
+    value: foo
 ```
 
 Example.
@@ -133,7 +138,7 @@ Example.
 ```
 humio_total{interval="5m", repo="humio"} 3458
 humio_audit_total{interval="5m", repo="humio-audit"} 2976
-humio_status_sum{interval="30m", repo="humio", squad="nasa"} 235
+humio_status_sum{interval="30m", repo="humio", squad="foo"} 235
 ```
 
 # Build
@@ -163,10 +168,9 @@ go build
 go test
 ```
 
-
 # Deployment
 
-To deploy the exporter in Kubernetes, you can find a simple Kubernetes deployment and secret yaml in the `examples` folder. You have to add your Humio api token in the `secrets.yaml` and/or the url of you humio deployment `deployment.yaml`. The examples assumes that you have a namespace in kubernetes named: `monitoring`. 
+To deploy the exporter in Kubernetes, you can find a simple Kubernetes deployment and secret yaml in the `examples` folder. You have to add your Humio api token in the `secrets.yaml` and/or the url of you humio deployment `deployment.yaml`. The examples assumes that you have a namespace in kubernetes named: `monitoring`.
 
 It further assumes that you have [kubernetes service discovery](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) configured for you Prometheus instance and a target that will gather metrics from pods, similar to this:
 
@@ -201,5 +205,6 @@ kubectl apply -f examples/deployment.yaml
 ```
 
 The exporter expose http endpoints that can be used by kubernetes probes:
-* `/healthz` - used for liveness probe, always returns `healthy`, status code 200.
-* `/ready` - used for readiness probe, return `true` and status code 200 after the first scrape completed. Otherwise, it returns `false`, with status code 503.
+
+- `/healthz` - used for liveness probe, always returns `healthy`, status code 200.
+- `/ready` - used for readiness probe, return `true` and status code 200 after the first scrape completed. Otherwise, it returns `false`, with status code 503.
