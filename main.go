@@ -12,7 +12,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	yaml "gopkg.in/yaml.v3"
 )
@@ -70,7 +70,11 @@ func main() {
 	apiToken := flags.Flag("humio.api-token", "Humio API token").Required().String()
 	requestTimeout := flags.Flag("humio.timeout", "Timeout for requests against the Humio API").Default("10").Int()
 	listenAddress := flags.Flag("web.listen-address", "Address on which to expose metrics.").Default(":9534").String()
-	log.AddFlags(flags)
+
+	logs, _ := zap.NewProduction()
+	defer logs.Sync()
+	sugar := logs.Sugar()
+
 	flags.HelpFlag.Short('h')
 	flags.Version(version)
 	kingpin.MustParse(flags.Parse(os.Args[1:]))
@@ -80,16 +84,16 @@ func main() {
 
 	currentDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		sugar.Fatal(err)
 	}
 	yamlFile, err := ioutil.ReadFile(path.Join(currentDir, *configFile))
 	if err != nil {
-		log.Infof("yamlFile.Get err   #%v ", err)
+		sugar.Infof("yamlFile.Get err   #%v ", err)
 	}
 
 	err = yaml.Unmarshal([]byte(yamlFile), &yamlConfig)
 	if err != nil {
-		log.Fatalf("error: %v", err)
+		sugar.Fatalf("error: %v", err)
 	}
 
 	// Register the prometheus metrics
@@ -103,7 +107,7 @@ func main() {
 
 	err = metricMap.Register()
 	if err != nil {
-		log.Fatalf("error: %v", err)
+		sugar.Fatalf("error: %v", err)
 	}
 
 	http.Handle("/metrics", promhttp.Handler())
@@ -120,7 +124,7 @@ func main() {
 
 	done := make(chan error, 1)
 	go func() {
-		log.Infof("Listening on %s", *listenAddress)
+		sugar.Infof("Listening on %s", *listenAddress)
 		err := http.ListenAndServe(*listenAddress, nil)
 		if err != nil {
 			done <- err
@@ -131,10 +135,10 @@ func main() {
 
 	reason := <-done
 	if reason != nil {
-		log.Errorf("Humio_exporter exited due to error: %v", reason)
+		sugar.Errorf("Humio_exporter exited due to error: %v", reason)
 		os.Exit(1)
 	}
-	log.Infof("Humio_exporter exited with exit 0")
+	sugar.Info("Humio_exporter exited with exit 0")
 }
 
 func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, requestTimeout time.Duration, metricMap MetricMap) {
@@ -168,6 +172,7 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 	}()
 
 	for {
+		logs, _ := zap.NewProduction()
 		for _, job := range jobs {
 			poll, err := client.pollQueryJob(job.Id, job.Repo)
 			if err != nil {
@@ -196,7 +201,8 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 					return
 				}
 			} else {
-				log.Debugf("Skipped value because query isn't done. Timespan: %v, Value: %v", job.Timespan, floatValue)
+				logs.Sugar().Debugf("Skipped value because query isn't done. Timespan: %v, Value: %v", job.Timespan, floatValue)
+
 			}
 		}
 		time.Sleep(5000 * time.Millisecond)
