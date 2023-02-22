@@ -9,7 +9,7 @@ import (
 	"net/http/httputil"
 	"strconv"
 
-	"github.com/prometheus/common/log"
+	"go.uber.org/zap"
 )
 
 type client struct {
@@ -102,17 +102,18 @@ func (c *client) do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if response.StatusCode != http.StatusOK {
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			log.Errorf("read body failed: %v", err)
+			zap.L().Sugar().Errorf("read body failed: %v", err)
 			body = []byte("failed to read body")
 		}
 		requestDump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			log.Debugf("Failed to dump request for logging")
+			zap.L().Sugar().Debugf("Failed to dump request for logging")
 		} else {
-			log.Debugf("Failed request dump: %s", requestDump)
+			zap.L().Sugar().Debugf("Failed request dump: %s", requestDump)
 		}
 		return nil, fmt.Errorf("request not OK: %s: body: %s", response.Status, body)
 	}
