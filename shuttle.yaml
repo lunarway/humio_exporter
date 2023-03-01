@@ -4,3 +4,4 @@ vars:
   service: humio_exporter
   squad: odyssey
   domain: platform-observability
+  system: humio
