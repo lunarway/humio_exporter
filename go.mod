@@ -3,9 +3,9 @@ module github.com/lunarway/humio_exporter
 go 1.20
 
 require (
-	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_golang v1.15.1
 	go.uber.org/zap v1.24.0
-	gopkg.in/alecthomas/kingpin.v2 v2.2.6
+	gopkg.in/alecthomas/kingpin.v2 v2.3.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
