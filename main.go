@@ -201,7 +201,6 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 				}
 			} else {
 				zap.L().Sugar().Debugf("Skipped value because query isn't done. Timespan: %v, Value: %v", job.Timespan, floatValue)
-
 			}
 		}
 		time.Sleep(5000 * time.Millisecond)
@@ -223,7 +222,6 @@ func (m *MetricMap) Register() error {
 }
 
 func (m *MetricMap) UpdateMetricValue(metricName, timespan, repo string, value float64, staticLabels []MetricLabel) error {
-
 	labels := make(map[string]string)
 	labels[intervalLabel] = timespan
 	labels[repoLabel] = repo
