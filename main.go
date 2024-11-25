@@ -179,6 +179,12 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 				return
 			}
 
+			// Handle cases where the metric may be missing for the given time range
+			if len(poll.Events) < 1 {
+				zap.L().Sugar().Debugf("No Events returned by query. Timespan: %v, MetricName: %s", job.Timespan, job.MetricName)
+				continue
+			}
+
 			var floatValue float64
 			for _, f := range supportedFunctions {
 				value, ok := poll.Events[0][f]
