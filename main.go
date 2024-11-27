@@ -179,6 +179,12 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 				return
 			}
 
+			// Handle cases where the metric may be missing for the given time range
+			if len(poll.Events) < 1 {
+				zap.L().Sugar().Debugf("No Events returned by query. Timespan: %v, MetricName: %s", job.Timespan, job.MetricName)
+				continue
+			}
+
 			var floatValue float64
 			for _, f := range supportedFunctions {
 				value, ok := poll.Events[0][f]
@@ -201,7 +207,6 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 				}
 			} else {
 				zap.L().Sugar().Debugf("Skipped value because query isn't done. Timespan: %v, Value: %v", job.Timespan, floatValue)
-
 			}
 		}
 		time.Sleep(5000 * time.Millisecond)
@@ -223,7 +228,6 @@ func (m *MetricMap) Register() error {
 }
 
 func (m *MetricMap) UpdateMetricValue(metricName, timespan, repo string, value float64, staticLabels []MetricLabel) error {
-
 	labels := make(map[string]string)
 	labels[intervalLabel] = timespan
 	labels[repoLabel] = repo
