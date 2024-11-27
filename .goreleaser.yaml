@@ -2,6 +2,12 @@ version: 2
 builds:
   - env:
       - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
 
 dockers:
   - dockerfile: Dockerfile-goreleaser
@@ -12,13 +18,9 @@ dockers:
       - "quay.io/lunarway/humio_exporter:v{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
 
 archives:
-  - format: binary
+  - id: archives
+    format: binary
     name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
-    replacements:
-      darwin: darwin
-      linux: linux
-      windows: windows
-      386: i386
 
 checksum:
   name_template: "{{ .ProjectName }}-checksums.txt"
