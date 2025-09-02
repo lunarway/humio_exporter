@@ -2,6 +2,6 @@ plan: false
 
 vars:
   service: humio_exporter
-  squad: odyssey
+  squad: esa
   domain: platform-observability
   system: humio
