@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type Client struct {
+type client struct {
 	httpClient *http.Client
 	token      string
 	baseURL    string
@@ -25,7 +25,7 @@ type startQueryPayload struct {
 	IsLive      bool   `json:"isLive"`
 }
 
-func (c *Client) startQueryJob(query, repo, metricName, start, end string, labels []MetricLabel) (queryJob, error) {
+func (c *client) startQueryJob(query, repo, metricName, start, end string, labels []MetricLabel) (queryJob, error) {
 	postData := startQueryPayload{
 		QueryString: query,
 		Start:       start,
@@ -62,7 +62,7 @@ func (c *Client) startQueryJob(query, repo, metricName, start, end string, label
 	return queryResponse, nil
 }
 
-func (c *Client) stopQueryJob(id, repo string) error {
+func (c *client) stopQueryJob(id, repo string) error {
 	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/repositories/%s/queryjobs/%s", c.baseURL, repo, id), nil)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (c *Client) stopQueryJob(id, repo string) error {
 	return nil
 }
 
-func (c *Client) pollQueryJob(id, repo string) (queryJobData, error) {
+func (c *client) pollQueryJob(id, repo string) (queryJobData, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/repositories/%s/queryjobs/%s", c.baseURL, repo, id), nil)
 	if err != nil {
 		return queryJobData{}, err
@@ -94,7 +94,7 @@ func (c *Client) pollQueryJob(id, repo string) (queryJobData, error) {
 	return queryJobDataResponse, nil
 }
 
-func (c *Client) do(req *http.Request) (*http.Response, error) {
+func (c *client) do(req *http.Request) (*http.Response, error) {
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.token))
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")

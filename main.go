@@ -143,7 +143,7 @@ func main() {
 }
 
 func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, requestTimeout time.Duration, metricMap MetricMap) {
-	client := Client{
+	client := client{
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
 		},
