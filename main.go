@@ -186,47 +186,49 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 				continue
 			}
 
-			if poll.Done {
-				// Check if this query uses table-based labels (valueFromTable)
-				hasTableLabels := false
-				for _, label := range job.MetricLabels {
-					if label.ValueFromTable != "" {
-						hasTableLabels = true
-						break
-					}
-				}
+			if !poll.Done {
+				zap.L().Sugar().Debugf("Skipped value because query isn't done. Timespan: %v, MetricName: %s", job.Timespan, job.MetricName)
+				continue
+			}
 
-				if hasTableLabels {
-					// Handle table-based results
-					err = metricMap.UpdateMetricValueFromTable(job.MetricName, job.Timespan, job.Repo, poll.Events, job.MetricLabels)
-					if err != nil {
-						done <- err
-						return
-					}
-				} else {
-					// Handle single-value results (existing logic)
-					var floatValue float64
-					for _, f := range supportedFunctions {
-						value, ok := poll.Events[0][f]
-						if !ok {
-							continue
-						}
-						floatValue, err = parseFloat(value)
-						if err != nil {
-							done <- err
-							return
-						}
-						break
-					}
-					err = metricMap.UpdateMetricValue(job.MetricName, job.Timespan, job.Repo, floatValue, job.MetricLabels)
-					if err != nil {
-						done <- err
-						return
-					}
+			// Check if this query uses table-based labels (valueFromTable)
+			hasTableLabels := false
+			for _, label := range job.MetricLabels {
+				if label.ValueFromTable != "" {
+					hasTableLabels = true
+					break
+				}
+			}
+
+			if hasTableLabels {
+				// Handle table-based results
+				err = metricMap.UpdateMetricValueFromTable(job.MetricName, job.Timespan, job.Repo, poll.Events, job.MetricLabels)
+				if err != nil {
+					done <- err
+					return
 				}
 			} else {
-				zap.L().Sugar().Debugf("Skipped value because query isn't done. Timespan: %v, MetricName: %s", job.Timespan, job.MetricName)
+				// Handle single-value results (existing logic)
+				var floatValue float64
+				for _, f := range supportedFunctions {
+					value, ok := poll.Events[0][f]
+					if !ok {
+						continue
+					}
+					floatValue, err = parseFloat(value)
+					if err != nil {
+						done <- err
+						return
+					}
+					break
+				}
+				err = metricMap.UpdateMetricValue(job.MetricName, job.Timespan, job.Repo, floatValue, job.MetricLabels)
+				if err != nil {
+					done <- err
+					return
+				}
 			}
+
 		}
 		time.Sleep(5000 * time.Millisecond)
 	}
@@ -277,30 +279,32 @@ func (m *MetricMap) UpdateMetricValueFromTable(metricName, timespan, repo string
 
 		// Add dynamic labels from table columns
 		for _, l := range metricLabels {
-			if l.ValueFromTable != "" {
-				if value, exists := row[l.ValueFromTable]; exists && value != nil {
-					if strValue, ok := value.(string); ok {
-						// Use the string value, or "unknown" if empty
-						if strValue != "" {
-							labels[l.Key] = strValue
-						} else {
-							labels[l.Key] = "unknown"
-							zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table value is empty string", l.Key)
-						}
+			if l.ValueFromTable == "" {
+				continue
+			}
+
+			if value, exists := row[l.ValueFromTable]; exists && value != nil {
+				if strValue, ok := value.(string); ok {
+					// Use the string value, or "unknown" if empty
+					if strValue != "" {
+						labels[l.Key] = strValue
 					} else {
-						// Convert non-string values to string
-						strValue := fmt.Sprintf("%v", value)
-						if strValue != "<nil>" && strValue != "" {
-							labels[l.Key] = strValue
-						} else {
-							labels[l.Key] = "unknown"
-							zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table value converted to empty/nil", l.Key)
-						}
+						labels[l.Key] = "unknown"
+						zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table value is empty string", l.Key)
 					}
 				} else {
-					labels[l.Key] = "unknown"
-					zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table column %s is unknown or doesn't exist", l.Key, l.ValueFromTable)
+					// Convert non-string values to string
+					strValue := fmt.Sprintf("%v", value)
+					if strValue != "<nil>" && strValue != "" {
+						labels[l.Key] = strValue
+					} else {
+						labels[l.Key] = "unknown"
+						zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table value converted to empty/nil", l.Key)
+					}
 				}
+			} else {
+				labels[l.Key] = "unknown"
+				zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table column %s is unknown or doesn't exist", l.Key, l.ValueFromTable)
 			}
 		}
 
