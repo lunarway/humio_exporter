@@ -72,7 +72,35 @@ queries:
 
 As seen in the last example query, you can also specify a set of static labels to be outputtet along with the metric.
 
-Currently the export supports the above aggregate query functions
+## Table-based Metrics with Dynamic Labels
+
+The exporter also supports table-based queries that return multiple rows, where each row can be exported as a separate metric with dynamic labels derived from table columns. This is useful for queries using `groupBy()` or similar functions that return tabular data.
+
+Example configuration for table-based metrics:
+
+```yaml
+- query: eventSize() | groupBy("k8s.labels.app", function=sum(_eventSize, as="value"))
+  repo: humio
+  interval: 1h
+  metric_name: log_ingest_bytes
+  metric_labels:
+  - key: app
+    valueFromTable: k8s.labels.app
+```
+
+This configuration will:
+1. Execute a query that groups events by `k8s.labels.app` and sums the event sizes
+2. Return a table with columns like `k8s.labels.app` and `value`
+3. Create separate metrics for each row, using the `k8s.labels.app` column value as the `app` label
+4. Result in metrics like:
+   - `log_ingest_bytes{app="foo", interval="1h", repo="humio"} 100`
+   - `log_ingest_bytes{app="bar", interval="1h", repo="humio"} 200`
+
+The `valueFromTable` field specifies which table column should be used as the label value. The metric value is automatically extracted from common field names like `value`, `_value`, `count`, or `_count`.
+
+**Null Value Handling**: If a table column contains null values or empty strings, the corresponding label will be set to "unknown". This ensures consistent metric cardinality and follows Prometheus best practices. You can see this behavior in debug logs.
+
+Currently the export supports the above aggregate query functions and table-based queries with dynamic labels.
 
 ```
 humio_exporter --config=CONFIG --humio.url=HUMIO.URL --humio.api-token=API.TOKEN
