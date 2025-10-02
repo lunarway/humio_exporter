@@ -49,8 +49,9 @@ type YamlConfig struct {
 }
 
 type MetricLabel struct {
-	Key   string `yaml:"key"`
-	Value string `yaml:"value"`
+	Key            string `yaml:"key"`
+	Value          string `yaml:"value"`
+	ValueFromTable string `yaml:"valueFromTable"`
 }
 
 var (
@@ -142,7 +143,7 @@ func main() {
 }
 
 func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, requestTimeout time.Duration, metricMap MetricMap) {
-	client := client{
+	client := Client{
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
 		},
@@ -185,28 +186,46 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 				continue
 			}
 
-			var floatValue float64
-			for _, f := range supportedFunctions {
-				value, ok := poll.Events[0][f]
-				if !ok {
-					continue
-				}
-				floatValue, err = parseFloat(value)
-				if err != nil {
-					done <- err
-					return
-				}
-				break
-			}
-
 			if poll.Done {
-				metricMap.UpdateMetricValue(job.MetricName, job.Timespan, job.Repo, floatValue, job.MetricLabels)
-				if err != nil {
-					done <- err
-					return
+				// Check if this query uses table-based labels (valueFromTable)
+				hasTableLabels := false
+				for _, label := range job.MetricLabels {
+					if label.ValueFromTable != "" {
+						hasTableLabels = true
+						break
+					}
+				}
+
+				if hasTableLabels {
+					// Handle table-based results
+					err = metricMap.UpdateMetricValueFromTable(job.MetricName, job.Timespan, job.Repo, poll.Events, job.MetricLabels)
+					if err != nil {
+						done <- err
+						return
+					}
+				} else {
+					// Handle single-value results (existing logic)
+					var floatValue float64
+					for _, f := range supportedFunctions {
+						value, ok := poll.Events[0][f]
+						if !ok {
+							continue
+						}
+						floatValue, err = parseFloat(value)
+						if err != nil {
+							done <- err
+							return
+						}
+						break
+					}
+					err = metricMap.UpdateMetricValue(job.MetricName, job.Timespan, job.Repo, floatValue, job.MetricLabels)
+					if err != nil {
+						done <- err
+						return
+					}
 				}
 			} else {
-				zap.L().Sugar().Debugf("Skipped value because query isn't done. Timespan: %v, Value: %v", job.Timespan, floatValue)
+				zap.L().Sugar().Debugf("Skipped value because query isn't done. Timespan: %v, MetricName: %s", job.Timespan, job.MetricName)
 			}
 		}
 		time.Sleep(5000 * time.Millisecond)
@@ -232,11 +251,82 @@ func (m *MetricMap) UpdateMetricValue(metricName, timespan, repo string, value f
 	labels[intervalLabel] = timespan
 	labels[repoLabel] = repo
 	for _, l := range staticLabels {
-		labels[l.Key] = l.Value
+		if l.Value != "" {
+			labels[l.Key] = l.Value
+		}
+		// Note: ValueFromTable is handled in UpdateMetricValueFromTable
 	}
 
 	gauge := m.Gauges[metricName]
 	gauge.With(labels).Set(value)
+	return nil
+}
+
+func (m *MetricMap) UpdateMetricValueFromTable(metricName, timespan, repo string, tableData []map[string]interface{}, metricLabels []MetricLabel) error {
+	for _, row := range tableData {
+		labels := make(map[string]string)
+		labels[intervalLabel] = timespan
+		labels[repoLabel] = repo
+
+		// Add static labels
+		for _, l := range metricLabels {
+			if l.Value != "" {
+				labels[l.Key] = l.Value
+			}
+		}
+
+		// Add dynamic labels from table columns
+		for _, l := range metricLabels {
+			if l.ValueFromTable != "" {
+				if value, exists := row[l.ValueFromTable]; exists && value != nil {
+					if strValue, ok := value.(string); ok {
+						// Use the string value, or "unknown" if empty
+						if strValue != "" {
+							labels[l.Key] = strValue
+						} else {
+							labels[l.Key] = "unknown"
+							zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table value is empty string", l.Key)
+						}
+					} else {
+						// Convert non-string values to string
+						strValue := fmt.Sprintf("%v", value)
+						if strValue != "<nil>" && strValue != "" {
+							labels[l.Key] = strValue
+						} else {
+							labels[l.Key] = "unknown"
+							zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table value converted to empty/nil", l.Key)
+						}
+					}
+				} else {
+					labels[l.Key] = "unknown"
+					zap.L().Sugar().Debugf("Setting label %s to 'unknown' because table column %s is unknown or doesn't exist", l.Key, l.ValueFromTable)
+				}
+			}
+		}
+
+		// Extract the metric value from the row
+		var floatValue float64
+		var err error
+
+		// Look for common value field names
+		valueFields := []string{"value", "_value", "count", "_count"}
+		for _, field := range valueFields {
+			if val, exists := row[field]; exists {
+				floatValue, err = parseFloat(val)
+				if err == nil {
+					break
+				}
+			}
+		}
+
+		if err != nil {
+			zap.L().Sugar().Warnf("Could not parse value from table row: %v", err)
+			continue
+		}
+
+		gauge := m.Gauges[metricName]
+		gauge.With(labels).Set(floatValue)
+	}
 	return nil
 }
 

@@ -41,3 +41,19 @@ queries:
     metric_labels:
       - key: squad
         value: foo
+
+  - query: eventSize() | groupBy("k8s.labels.app", function=sum(_eventSize, as="value"))
+    # Results in a table like this:
+    # | k8s.labels.app | value |
+    # |----------------|-------|
+    # | foo            | 100   |
+    # | bar            | 200   |
+    repo: humio
+    interval: 1h
+    metric_name: log_ingest_bytes
+    metric_labels:
+    - key: app
+      valueFromTable: k8s.labels.app
+    # This will result in the following metric:
+    # log_ingest_bytes{app="foo", interval="1h", repo="humio"} 100
+    # log_ingest_bytes{app="bar", interval="1h", repo="humio"} 200
