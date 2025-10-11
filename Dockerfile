@@ -1,4 +1,4 @@
-FROM golang:1.24.0 as builder
+FROM golang:1.25.2 as builder
 
 WORKDIR /src
 ENV CGO_ENABLED=0
