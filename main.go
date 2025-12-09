@@ -204,6 +204,8 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 				// If query job not found (expired), restart it
 				if errors.Is(err, ErrQueryNotFound) {
 					zap.L().Sugar().Infof("Query job %s expired, restarting for metric %s", job.Id, job.MetricName)
+					// Try to stop old query job first, ignore errors since it may not exist
+					client.stopQueryJob(job.Id, job.Repo)
 					cfg := configs[i]
 					newJob, restartErr := client.startQueryJob(cfg.Query, cfg.Repo, cfg.MetricName, cfg.Interval, "now", cfg.MetricLabels)
 					if restartErr != nil {
