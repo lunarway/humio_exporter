@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -99,10 +101,34 @@ func (c *client) pollQueryJob(id, repo string) (queryJobData, error) {
 }
 
 func (c *client) do(req *http.Request) (*http.Response, error) {
+	// Save body for retries
+	var bodyBytes []byte
+	if req.Body != nil {
+		bodyBytes, _ = io.ReadAll(req.Body)
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.token))
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
-	response, err := c.httpClient.Do(req)
+
+	var response *http.Response
+	var err error
+
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 && bodyBytes != nil {
+			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		}
+
+		response, err = c.httpClient.Do(req)
+		if err != nil || (response != nil && response.StatusCode >= 500) {
+			zap.L().Sugar().Warnf("Request failed (attempt %d/3), retrying: %v", attempt+1, err)
+			time.Sleep(time.Duration(attempt+1) * time.Second)
+			continue
+		}
+		break
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +140,6 @@ func (c *client) do(req *http.Request) (*http.Response, error) {
 			body = []byte("failed to read body")
 		}
 
-		// Check for 404 Not Found - query job may have expired
 		if response.StatusCode == http.StatusNotFound {
 			return nil, ErrQueryNotFound
 		}
