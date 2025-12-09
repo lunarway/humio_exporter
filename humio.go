@@ -136,8 +136,14 @@ func (c *client) do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
+	// Check if all retries were exhausted due to 5xx responses
+	if response.StatusCode >= 500 {
+		return nil, fmt.Errorf("request failed after 3 retries with status code %d", response.StatusCode)
+	}
+
 	if response.StatusCode != http.StatusOK {
 		body, err := ioutil.ReadAll(response.Body)
+		response.Body.Close() // Close body since we're returning an error, not the response
 		if err != nil {
 			zap.L().Sugar().Errorf("read body failed: %v", err)
 			body = []byte("failed to read body")
