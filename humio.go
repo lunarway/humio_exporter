@@ -122,6 +122,9 @@ func (c *client) do(req *http.Request) (*http.Response, error) {
 
 		response, err = c.httpClient.Do(req)
 		if err != nil || (response != nil && response.StatusCode >= 500) {
+			if response != nil && response.Body != nil {
+				response.Body.Close()
+			}
 			zap.L().Sugar().Warnf("Request failed (attempt %d/3), retrying: %v", attempt+1, err)
 			time.Sleep(time.Duration(attempt+1) * time.Second)
 			continue
