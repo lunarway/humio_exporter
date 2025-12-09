@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,6 +12,9 @@ import (
 
 	"go.uber.org/zap"
 )
+
+// ErrQueryNotFound is returned when a query job no longer exists on the server
+var ErrQueryNotFound = errors.New("query job not found")
 
 type client struct {
 	httpClient *http.Client
@@ -109,6 +113,12 @@ func (c *client) do(req *http.Request) (*http.Response, error) {
 			zap.L().Sugar().Errorf("read body failed: %v", err)
 			body = []byte("failed to read body")
 		}
+
+		// Check for 404 Not Found - query job may have expired
+		if response.StatusCode == http.StatusNotFound {
+			return nil, ErrQueryNotFound
+		}
+
 		requestDump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
 			zap.L().Sugar().Debugf("Failed to dump request for logging")
