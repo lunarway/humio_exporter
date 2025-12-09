@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"sync"
 	"syscall"
 	"time"
 
@@ -163,6 +164,7 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 
 	var jobs []queryJob
 	var configs []queryConfig
+	var jobsMutex sync.RWMutex
 
 	for _, q := range yamlConfig.Queries {
 		job, err := client.startQueryJob(q.Query, q.Repo, q.MetricName, q.Interval, "now", q.MetricLabels)
@@ -184,7 +186,12 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigs
-		for _, job := range jobs {
+		// Copy jobs under read lock to avoid data race with main loop
+		jobsMutex.RLock()
+		jobsCopy := make([]queryJob, len(jobs))
+		copy(jobsCopy, jobs)
+		jobsMutex.RUnlock()
+		for _, job := range jobsCopy {
 			client.stopQueryJob(job.Id, job.Repo)
 		}
 		done <- fmt.Errorf("received os signal '%s'", sig)
@@ -203,7 +210,9 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 						done <- fmt.Errorf("failed to restart query job: %w", restartErr)
 						return
 					}
+					jobsMutex.Lock()
 					jobs[i] = newJob
+					jobsMutex.Unlock()
 					zap.L().Sugar().Infof("Successfully restarted query job with new ID %s for metric %s", newJob.Id, newJob.MetricName)
 					continue
 				}
