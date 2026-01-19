@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
 	"path"
+	"sync"
 	"syscall"
 	"time"
 
@@ -142,6 +144,15 @@ func main() {
 	zap.L().Sugar().Info("Humio_exporter exited with exit 0")
 }
 
+// queryConfig stores the original query configuration for restarting jobs
+type queryConfig struct {
+	Query        string
+	Repo         string
+	Interval     string
+	MetricName   string
+	MetricLabels []MetricLabel
+}
+
 func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, requestTimeout time.Duration, metricMap MetricMap) {
 	client := client{
 		httpClient: &http.Client{
@@ -152,6 +163,8 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 	}
 
 	var jobs []queryJob
+	var configs []queryConfig
+	var jobsMutex sync.RWMutex
 
 	for _, q := range yamlConfig.Queries {
 		job, err := client.startQueryJob(q.Query, q.Repo, q.MetricName, q.Interval, "now", q.MetricLabels)
@@ -160,22 +173,51 @@ func runAPIPolling(done chan error, url, token string, yamlConfig YamlConfig, re
 			return
 		}
 		jobs = append(jobs, job)
+		configs = append(configs, queryConfig{
+			Query:        q.Query,
+			Repo:         q.Repo,
+			Interval:     q.Interval,
+			MetricName:   q.MetricName,
+			MetricLabels: q.MetricLabels,
+		})
 	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigs
-		for _, job := range jobs {
+		// Copy jobs under read lock to avoid data race with main loop
+		jobsMutex.RLock()
+		jobsCopy := make([]queryJob, len(jobs))
+		copy(jobsCopy, jobs)
+		jobsMutex.RUnlock()
+		for _, job := range jobsCopy {
 			client.stopQueryJob(job.Id, job.Repo)
 		}
 		done <- fmt.Errorf("received os signal '%s'", sig)
 	}()
 
 	for {
-		for _, job := range jobs {
+		for i, job := range jobs {
 			poll, err := client.pollQueryJob(job.Id, job.Repo)
 			if err != nil {
+				// If query job not found (expired), restart it
+				if errors.Is(err, ErrQueryNotFound) {
+					zap.L().Sugar().Infof("Query job %s expired, restarting for metric %s", job.Id, job.MetricName)
+					// Try to stop old query job first, ignore errors since it may not exist
+					client.stopQueryJob(job.Id, job.Repo)
+					cfg := configs[i]
+					newJob, restartErr := client.startQueryJob(cfg.Query, cfg.Repo, cfg.MetricName, cfg.Interval, "now", cfg.MetricLabels)
+					if restartErr != nil {
+						done <- fmt.Errorf("failed to restart query job: %w", restartErr)
+						return
+					}
+					jobsMutex.Lock()
+					jobs[i] = newJob
+					jobsMutex.Unlock()
+					zap.L().Sugar().Infof("Successfully restarted query job with new ID %s for metric %s", newJob.Id, newJob.MetricName)
+					continue
+				}
 				done <- err
 				return
 			}
