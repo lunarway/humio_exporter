@@ -3,14 +3,20 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
+	"time"
 
 	"go.uber.org/zap"
 )
+
+// ErrQueryNotFound is returned when a query job no longer exists on the server
+var ErrQueryNotFound = errors.New("query job not found")
 
 type client struct {
 	httpClient *http.Client
@@ -95,20 +101,58 @@ func (c *client) pollQueryJob(id, repo string) (queryJobData, error) {
 }
 
 func (c *client) do(req *http.Request) (*http.Response, error) {
+	// Save body for retries
+	var bodyBytes []byte
+	if req.Body != nil {
+		bodyBytes, _ = io.ReadAll(req.Body)
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.token))
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
-	response, err := c.httpClient.Do(req)
+
+	var response *http.Response
+	var err error
+
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 && bodyBytes != nil {
+			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		}
+
+		response, err = c.httpClient.Do(req)
+		if err != nil || (response != nil && response.StatusCode >= 500) {
+			if response != nil && response.Body != nil {
+				response.Body.Close()
+			}
+			zap.L().Sugar().Warnf("Request failed (attempt %d/3), retrying: %v", attempt+1, err)
+			time.Sleep(time.Duration(attempt+1) * time.Second)
+			continue
+		}
+		break
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
+	// Check if all retries were exhausted due to 5xx responses
+	if response.StatusCode >= 500 {
+		return nil, fmt.Errorf("request failed after 3 retries with status code %d", response.StatusCode)
+	}
+
 	if response.StatusCode != http.StatusOK {
 		body, err := ioutil.ReadAll(response.Body)
+		response.Body.Close() // Close body since we're returning an error, not the response
 		if err != nil {
 			zap.L().Sugar().Errorf("read body failed: %v", err)
 			body = []byte("failed to read body")
 		}
+
+		if response.StatusCode == http.StatusNotFound {
+			return nil, ErrQueryNotFound
+		}
+
 		requestDump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
 			zap.L().Sugar().Debugf("Failed to dump request for logging")
