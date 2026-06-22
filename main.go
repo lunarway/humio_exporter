@@ -265,6 +265,17 @@ func (m *MetricMap) UpdateMetricValue(metricName, timespan, repo string, value f
 }
 
 func (m *MetricMap) UpdateMetricValueFromTable(metricName, timespan, repo string, tableData []map[string]interface{}, metricLabels []MetricLabel) error {
+	gauge := m.Gauges[metricName]
+
+	// Evict series from the previous poll that share this (repo, interval) scope so
+	// label values that no longer appear in the query result stop being exported.
+	// Scoping by repo+interval avoids clobbering series produced by other queries
+	// that happen to share the same metric name.
+	gauge.DeletePartialMatch(prometheus.Labels{
+		repoLabel:     repo,
+		intervalLabel: timespan,
+	})
+
 	for _, row := range tableData {
 		labels := make(map[string]string)
 		labels[intervalLabel] = timespan
@@ -328,7 +339,6 @@ func (m *MetricMap) UpdateMetricValueFromTable(metricName, timespan, repo string
 			continue
 		}
 
-		gauge := m.Gauges[metricName]
 		gauge.With(labels).Set(floatValue)
 	}
 	return nil
